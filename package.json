@@ -5,7 +5,8 @@
   "description": "Optional weekly browser refresh for linkedin-network-leads",
   "scripts": {
     "login": "node scripts/refresh_browser.mjs --login",
-    "refresh": "node scripts/refresh_browser.mjs"
+    "refresh": "node scripts/refresh_browser.mjs",
+    "test": "node scripts/test_refresh.mjs"
   },
   "dependencies": {
     "playwright-core": "1.49.1"

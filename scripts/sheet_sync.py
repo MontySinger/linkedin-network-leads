@@ -14,6 +14,7 @@ from pathlib import Path
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 STATE = DATA / "sheet-state.json"
+PENDING = DATA / "sheet-pending.json"  # exactly what `pending` handed out, so `mark` marks only that
 HEADER = ["Name", "Title", "Company", "Connected on", "Profile URL", "Email", "First seen", "Source"]
 LOG_HEADER = ["date", "result", "linkedin_total", "scanned", "new", "cutoff", "stop"]
 
@@ -56,15 +57,21 @@ def main():
     elif cmd == "pending":
         st = load(); done = set(st["synced"])
         new = sorted((x for x in connections() if x["key"] not in done), key=lambda x: x["connected_on"], reverse=True)
-        logs = log_rows()[st["log_rows_synced"]:]
+        all_logs = log_rows()
+        logs = all_logs[st["log_rows_synced"]:]
+        PENDING.write_text(json.dumps({"keys": [x["key"] for x in new], "log_rows_total": len(all_logs)}))
         print(json.dumps({"spreadsheet_id": st["spreadsheet_id"], "connections_tab": "Connections",
                           "log_tab": "Refresh log", "log_header": LOG_HEADER,
                           "new_rows": [row(x) for x in new], "new_keys": [x["key"] for x in new],
                           "new_log_rows": logs}, indent=1))
     elif cmd == "mark":
         st = load()
-        st["synced"] = sorted(set(st["synced"]) | {x["key"] for x in connections()})
-        st["log_rows_synced"] = len(log_rows())
+        if not PENDING.exists():
+            sys.exit("Nothing pending to mark. Run `pending`, append those rows, then `mark`.")
+        pend = json.loads(PENDING.read_text())
+        st["synced"] = sorted(set(st["synced"]) | set(pend["keys"]))
+        st["log_rows_synced"] = pend["log_rows_total"]
+        PENDING.unlink()
         STATE.write_text(json.dumps(st, indent=1))
         print(f"marked: {len(st['synced'])} rows, {st['log_rows_synced']} log rows synced")
     else:

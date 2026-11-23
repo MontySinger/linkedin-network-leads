@@ -160,6 +160,20 @@ def shortlist(top: int) -> Path:
         scored.append((score, overlap, senior, age, r))
     # ties: more keyword hits, then more senior, then more recently connected
     scored.sort(key=lambda x: (-x[0], -x[1], -x[2], x[3]))
+    # Feedback the agent should act on before judging: keywords too generic to rank anything,
+    # and how many people the avoid list removed.
+    n = max(len(rows), 1)
+    for k, w in zip(phrases, want):
+        hits = sum(1 for r in rows if w.search(f"{r.get('position','')} {r.get('company','')}"))
+        if hits / n > 0.10:
+            print(f"warning: keyword '{k}' matches {hits} of {n} people ({hits * 100 // n}%): too generic to rank by. "
+                  f"Replace it with something specific.", file=sys.stderr)
+    unused = [k for k, w in zip(phrases, want)
+              if not any(w.search(f"{r.get('position','')} {r.get('company','')}") for r in rows)]
+    if unused:
+        print(f"note: {len(unused)} keywords match nobody: {', '.join(unused)}", file=sys.stderr)
+    skipped = sum(1 for r in rows if avoided(r, avoid))
+    print(f"avoid list {avoid} skipped {skipped} of {n} people.", file=sys.stderr)
     out = DATA / "shortlist.csv"
     with out.open("w", newline="") as f:
         w = csv.writer(f)

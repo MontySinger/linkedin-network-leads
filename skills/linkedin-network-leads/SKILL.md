@@ -10,7 +10,7 @@ Your next client or best intro is usually someone you already know and forgot ab
 **Works with any coding agent** that can read files and run commands: Claude Code, Codex, Cursor, Gemini CLI, Grok-based agents, and others. Nothing here depends on one model. Where a step needs a tool (a browser, a Google Sheets connection, a scheduler), use whatever the agent has; if it has none, the step says what to do instead. The scripts themselves (Python and Node) run with no model at all.
 
 ## 1. Get your connections (once, ~1–2 days)
-LinkedIn on desktop → **Me → Settings & Privacy → Data privacy → Get a copy of your data** → choose **Connections** (faster than the full archive) → Request archive. LinkedIn emails you a download link, usually within a day. Download it and tell the agent where it is. The `.zip`, the folder macOS unzips it into, or `Connections.csv` itself all work.
+LinkedIn on desktop → **Me → Settings & Privacy → Data privacy → Get a copy of your data** → choose **Connections** (faster than the full archive) → Request archive. LinkedIn emails you a download link, usually within a day. Download it and tell the agent where it is. The `.zip`, the folder macOS unzips it into, or `Connections.csv` itself all work. The script reads the zip in memory; it never extracts files.
 
 ```
 python3 scripts/network.py import ~/Downloads/Basic_LinkedInDataExport_*.zip
@@ -25,16 +25,21 @@ Ask the user exactly two questions, then write `data/about.json`:
 ```json
 {"offer": "...", "goal": "...", "keywords": ["owner", "operations", "clinic", "..."], "avoid": ["recruiters", "..."]}
 ```
-Derive 10–25 keywords from the answers: industries, company types and functions the user wants ("dental", "law firm", "property management", "operations"). Seniority is scored separately, so do not spend keywords on "owner" or "ceo". Use exact phrases and include synonyms; avoid words that appear everywhere ("business", "services", "practice").
+Derive 10–25 keywords from the answers: industries, company types and functions the user wants ("dental", "law firm", "property management", "operations"). Seniority is scored separately, so do not spend keywords on "owner" or "ceo". Use exact phrases and include synonyms; avoid words that appear everywhere ("business", "services", "practice", "consulting", "AI").
+
+`avoid` holds only what the user named plus direct word forms ("recruiter" → "recruiting"). Do not add categories they did not mention. Tell the user the final keywords and avoid list in one line so they can correct it.
+
+If the user cannot be asked (a non-interactive run), use the answers given in the request; if none were given, stop and say the two questions are needed.
 
 ## 3. Find who matters
 ```
 python3 scripts/network.py shortlist --top 150
 ```
+If it warns that a keyword is too generic, replace that keyword in `about.json` and rerun before judging.
 `data/shortlist.csv` is a keyword/seniority/recency pre-filter, not the answer. The export has only title and company, no industry, so many good fits (an "Owner" of a company whose name says nothing) score low. If the network is under ~3,000 people, also skim the owners and founders the shortlist missed before deciding. Read it, then judge each person against the user's answers:
 - **Why them, now:** fit with the offer or goal, seniority, recent connection, company type. Only what the data supports; do not invent facts about people.
 - **Best next step:** a specific, low-pressure action (congratulate a new role, ask a question, offer something useful, ask for an intro).
-- **Opening line:** one or two sentences in the user's voice. The user sends it themselves.
+- **Opening line:** one or two sentences in the user's voice. The user sends it themselves. Never promise something the user has not said they have (a write-up, a case study, a free audit). Offer what they can give today: a question, a call, feedback, an intro.
 
 Write `data/top-people.md`: the top 15–25, grouped Clients / Intros / Other, each with name, role, company, why, next step, opening line. Skip anyone matching `avoid`. Say plainly when the export lacks the information to judge (many connections hide email or have old titles).
 
@@ -44,7 +49,7 @@ Messages are cheap; meetings are where clients and intros happen. Run:
 python3 scripts/network.py insights
 ```
 `data/insights.md` lists facts only: where the user's offer fits in their network, decision-makers connected in the last 90 days, dormant decision-makers (connected over a year ago), and companies where the user knows several people. Turn it into `data/meet-this-week.md`:
-- **Meet this week (3–5 people):** the people worth a call or coffee, not just a message. For each: why a meeting (not a DM) is the right move, the one thing the user wants out of it (a pain point, an intro, a referral swap), one question to open with, and what the user can offer first. Prefer warm and recent over impressive and cold.
+- **Meet this week (3–5 people):** the people worth a call or coffee, not just a message. For each: why a meeting (not a DM) is the right move, the one thing the user wants out of it (a pain point, an intro, a referral swap), one question to open with, and what the user can offer first (same rule: nothing they have not said they have). Prefer warm and recent over impressive and cold.
 - **Patterns worth knowing (3 bullets):** plain observations a busy person would act on, each backed by a number from `insights.md`. For example: "Most of your fit is in operations titles (32), not owners: pitch the operator, then ask them to bring the owner." Or: "You know 12 people at one firm: one meeting there can lead to the rest."
 - **Reconnect list (up to 5):** dormant decision-makers worth a "been a while" note before asking for anything.
 Same rule as step 3: only what the data shows. If a pattern is a guess, say so.
@@ -77,7 +82,7 @@ Best with a Google Sheets/Drive connector in the agent. Never ask for or store G
 5. If the agent can schedule its own runs, offer a Monday job shortly after the 9:00 refresh that runs step 4 and reports PASS/FAIL, new names, and the sheet link. If it cannot, the user says "sync my sheet" after the refresh notification.
 
 ## 5. Report
-Tell the user: how many connections, how many new since last time, the 3–5 people to meet this week with one line each, and where the full lists are (`data/top-people.md`, `data/meet-this-week.md`).
+Tell the user: how many connections, how many new since last time (on a first import, say it is the baseline), the 3–5 people to meet this week with one line each, and where the full lists are (`data/top-people.md`, `data/meet-this-week.md`).
 
 ## Trying it without real data
 Sample data must never go into the user's real list. Use the separate demo store:

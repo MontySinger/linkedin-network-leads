@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = path.join(ROOT, "data");
@@ -35,6 +35,20 @@ const MIN_WINDOW_DAYS = 8;     // always cover at least a week plus a day
 const KNOWN_STREAK = 10;       // stop only after this many already-known people in a row, past the cutoff
 const MAX_SCROLLS = 200;       // ~2,000 people; hitting this is a QA failure, not a silent stop
 const STALL_LIMIT = 4;         // scrolls with no new rows before we call the list stalled
+
+// Decide whether the scan has provably covered every connection since `cutoff`.
+// Exported so it can be tested without a browser (scripts/test_refresh.mjs).
+export function decideStop({ rows, known, cutoff, header, scrolls, stalls, maxScrolls }) {
+  const oldest = rows.at(-1)?.date || "";
+  let streak = 0;
+  for (let i = rows.length - 1; i >= 0 && known.has(rows[i].key) && rows[i].date < cutoff; i--) streak++;
+  if (known.size && oldest && oldest < cutoff && streak >= KNOWN_STREAK) return "overlap";
+  // The list stopped growing. That is a real end only if we have nearly everyone LinkedIn counts
+  // (a few percent are hidden accounts the page never shows); otherwise loading broke mid-list.
+  if (stalls >= STALL_LIMIT) return header && rows.length >= 0.95 * header ? "end_of_list" : "stalled";
+  if (scrolls >= maxScrolls) return "max_scrolls";
+  return "";
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const human = () => sleep(2500 + Math.random() * 2000);
@@ -115,9 +129,13 @@ async function main() {
   }
 
   await sleep(4000);
-  if (/\/(login|checkpoint|authwall|uas)\b/.test(page.url()) || !(await page.evaluate(EXTRACT)).header) {
-    notify("LinkedIn refresh stopped", "Sign-in needed. Run: npm run login");
-    console.error(`Not signed in (landed on ${page.url()}). Run: npm run login`);
+  const signedOut = /\/(login|checkpoint|authwall|uas)\b/.test(page.url());
+  if (signedOut || !(await page.evaluate(EXTRACT)).header) {
+    const why = signedOut
+      ? "Sign-in needed. Run: npm run login"
+      : "Could not read the connections page. LinkedIn may have changed its layout, or its language is not English (Settings > Account preferences > Language).";
+    notify("LinkedIn refresh stopped", why);
+    console.error(`${why} (page: ${page.url()})`);
     await ctx.close();
     return 2;
   }
@@ -130,15 +148,13 @@ async function main() {
 
   // Scroll until we are past the cutoff AND have seen KNOWN_STREAK already-known people in a row.
   let snap = await page.evaluate(EXTRACT);
+  // With an empty store (no export imported) this is a full backfill: read to the end of the list.
+  const maxScrolls = Math.max(MAX_SCROLLS, Math.ceil((snap.header || 0) / 10) + 30);
   let stalls = 0, scrolls = 0, stop = "";
   for (;;) {
     const rows = snap.rows.map((r) => ({ ...r, date: parseDate(r.connected), key: norm(r.url) }));
-    const oldest = rows.at(-1)?.date || "";
-    let streak = 0;
-    for (let i = rows.length - 1; i >= 0 && store.has(rows[i].key) && rows[i].date < cutoff; i--) streak++;
-    if (oldest && oldest < cutoff && streak >= KNOWN_STREAK) { stop = "overlap"; break; }
-    if (scrolls >= MAX_SCROLLS) { stop = "max_scrolls"; break; }
-    if (stalls >= STALL_LIMIT) { stop = "stalled"; break; }
+    stop = decideStop({ rows, known: store, cutoff, header: snap.header, scrolls, stalls, maxScrolls });
+    if (stop) break;
     const before = snap.rows.length;
     await page.evaluate(() => { const m = document.querySelector("main"); m.scrollTo(0, m.scrollHeight); window.scrollTo(0, document.body.scrollHeight); });
     await human();
@@ -157,8 +173,11 @@ async function main() {
   const checks = [];
   const check = (name, ok, detail, severity = "FAIL") => checks.push({ name, status: ok ? "PASS" : severity, detail });
 
-  check("Reached overlap with known connections", stop === "overlap",
-    stop === "overlap" ? `read past ${cutoff} and hit ${KNOWN_STREAK} known people in a row` : `stopped early: ${stop}`);
+  const covered = stop === "overlap" || stop === "end_of_list";
+  check("Read far enough to cover the whole window", covered,
+    stop === "overlap" ? `read past ${cutoff} and hit ${KNOWN_STREAK} known people in a row`
+      : stop === "end_of_list" ? `read to the end of the list (${rows.length} of ${snap.header} LinkedIn counts)`
+      : `stopped early: ${stop}`);
   const urls = rows.map((r) => r.key);
   check("No duplicate rows", new Set(urls).size === urls.length, `${urls.length - new Set(urls).size} duplicates`);
   const bad = rows.filter((r) => !r.key || !r.name || !r.date);
@@ -200,8 +219,8 @@ async function main() {
     ...(fresh.length ? fresh.map((r) => `- ${r.date} · ${r.name} · ${r.headline} · ${r.url}`) : ["None."]), "",
   ].join("\n");
   fs.writeFileSync(path.join(DATA, `refresh-qa-${stamp}.md`), report);
-  if (!fs.existsSync(LOG)) fs.writeFileSync(LOG, "date,result,linkedin_total,scanned,new,cutoff,stop\n");
-  fs.appendFileSync(LOG, `${stamp},${failed ? "FAIL" : "PASS"},${snap.header},${rows.length},${fresh.length},${cutoff},${stop}\n`);
+  if (!DRY && !fs.existsSync(LOG)) fs.writeFileSync(LOG, "date,result,linkedin_total,scanned,new,cutoff,stop\n");
+  if (!DRY) fs.appendFileSync(LOG, `${stamp},${failed ? "FAIL" : "PASS"},${snap.header},${rows.length},${fresh.length},${cutoff},${stop}\n`);
 
   if (!DRY) {
     const next = { ...state, last_run: stamp, header_count: snap.header };
@@ -214,8 +233,10 @@ async function main() {
   return failed ? 1 : 0;
 }
 
-main().then((code) => process.exit(code)).catch((e) => {
-  notify("LinkedIn refresh error", String(e.message || e).slice(0, 120));
-  console.error(e);
-  process.exit(3);
-});
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().then((code) => process.exit(code)).catch((e) => {
+    notify("LinkedIn refresh error", String(e.message || e).slice(0, 120));
+    console.error(e);
+    process.exit(3);
+  });
+}
