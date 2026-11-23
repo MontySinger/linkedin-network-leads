@@ -1,5 +1,7 @@
 # LinkedIn network leads
 
+**New here? Start with the [step-by-step guide](GUIDE.md).**
+
 Your next client is probably already in your network. You just forgot about them.
 
 This is a Claude Code skill that reads your LinkedIn connections, asks you two questions about your business, and gives you a short list of people worth talking to this week, with why each one matters and a first line you can send. It can also keep the list current by reading your own connections page in your browser, so you are not stuck waiting on LinkedIn's export.
@@ -29,6 +31,8 @@ Everything runs on your computer. Your connections never leave the `data/` folde
 ## Keeping it current
 Say "refresh my LinkedIn connections". Claude opens your connections page in your own signed-in browser, reads the newest connections until it reaches people it already knows, and merges them in. You sign in yourself; it never touches your password.
 
+**Google Sheet.** If your agent has a Google Sheets connector, ask it to put your connections in a sheet. It uploads everything once, then appends only new rows after each refresh, with a log tab showing whether each refresh passed.
+
 **Weekly, automatically (macOS).** If you add a lot of connections, `npm install && npm run login` (sign in once in the window that opens), then `sh launchd/install.sh`. Every Monday it reads every connection since the last run, checks its own work (stops early? skipped a batch? LinkedIn's total grew more than it found?), merges them, and writes a QA report to `data/`. You get a Mac notification either way.
 
 Read this before you use it: automated access to LinkedIn can conflict with LinkedIn's User Agreement. The skill only reads your own connections list, slowly, when you ask, and never messages anyone or visits profiles in bulk. That lowers the risk; it does not remove it. Your call.
@@ -42,6 +46,8 @@ A simple script ranks everyone by fit with your answers, seniority and how recen
 AGENTS.md                                       points Codex and other agents to that workflow
 scripts/refresh_browser.mjs                     optional weekly browser refresh with QA
 launchd/install.sh                              schedules it on macOS (Mondays 9:00)
+scripts/sheet_sync.py                           decides what to append to a Google Sheet, so nothing is sent twice
+GUIDE.md                                        step-by-step setup guide for anyone
 scripts/network.py                              import, refresh, shortlist, stats
 examples/Connections.sample.csv                 fake data to try it without an export
 ```
