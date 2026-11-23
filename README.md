@@ -17,9 +17,9 @@ Everything runs on your computer. Your connections never leave the `data/` folde
    ```
    git clone https://github.com/MontySinger/linkedin-network-leads
    cd linkedin-network-leads
-   claude
+   claude      # or: codex
    ```
-3. **Run it.** Tell Claude: "Find the people in my LinkedIn network I should talk to. My export is at ~/Downloads/…zip". It imports the file, asks you two questions, and writes `data/top-people.md`.
+3. **Run it.** Works in Claude Code or Codex (Codex reads `AGENTS.md`, which points it at the same skill). Tell it: "Find the people in my LinkedIn network I should talk to. My export is at ~/Downloads/…" (the .zip, the unzipped folder, or Connections.csv). It imports the file, asks you two questions, and writes `data/top-people.md`.
 
 ## What you get
 - `data/top-people.md`: 15–25 people grouped by clients, intros and other, each with why now, a next step and an opening line.
@@ -37,10 +37,11 @@ A simple script ranks everyone by fit with your answers, seniority and how recen
 ## Files
 ```
 .claude/skills/linkedin-network-leads/SKILL.md   the workflow Claude follows
+AGENTS.md                                       points Codex and other agents to that workflow
 scripts/network.py                              import, refresh, shortlist, stats
 examples/Connections.sample.csv                 fake data to try it without an export
 ```
 
-Try it without your own data: `python3 scripts/network.py import examples/Connections.sample.csv`.
+Try it without your own data: `python3 scripts/network.py --demo import examples/Connections.sample.csv`. The `--demo` flag keeps fake people in `data/demo/`, away from your real list.
 
 MIT license. Built by [Monty Singer](https://www.instagram.com/montyautomates/).

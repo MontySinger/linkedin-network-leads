@@ -5,6 +5,7 @@
     network.py refresh PATH.json      # connections read from your own browser (see SKILL.md)
     network.py shortlist [--top 60]   # rank against data/about.json, write data/shortlist.csv
     network.py stats
+    network.py --demo ...             # same commands on a separate demo store (data/demo)
 
 Everything stays in ./data (git-ignored). Standard library only.
 """
@@ -25,8 +26,13 @@ DATA = ROOT / "data"
 STORE = DATA / "connections.csv"
 FIELDS = ["key", "first_name", "last_name", "url", "email", "company", "position",
           "connected_on", "first_seen", "last_seen", "source"]
-SENIOR = re.compile(r"\b(founder|co-?founder|owner|ceo|coo|cto|cfo|president|partner|principal|director|head|vp|"
-                    r"vice president|managing|chief|gm|general manager)\b", re.I)
+DECIDER = re.compile(r"\b(founder|co-?founder|owner|ceo|president|principal|managing partner|proprietor)\b", re.I)
+SENIOR = re.compile(r"\b(coo|cto|cfo|partner|director|head|vp|vice president|managing|chief|gm|general manager)\b", re.I)
+
+
+def use_store(data: Path) -> None:
+    global DATA, STORE
+    DATA, STORE = data, data / "connections.csv"
 
 
 def today() -> str:
@@ -56,6 +62,11 @@ def save(rows: dict[str, dict]) -> None:
 
 def read_export(path: Path) -> list[dict]:
     """LinkedIn's Connections.csv starts with a few 'Notes' lines before the header."""
+    if path.is_dir():  # macOS often unzips the download into a folder
+        found = sorted(path.rglob("[Cc]onnections.csv"))
+        if not found:
+            sys.exit(f"No Connections.csv inside {path}")
+        path = found[0]
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as z:
             name = next(n for n in z.namelist() if n.lower().endswith("connections.csv"))
@@ -66,6 +77,8 @@ def read_export(path: Path) -> list[dict]:
     start = next(i for i, l in enumerate(lines) if l.lower().startswith("first name"))
     out = []
     for r in csv.DictReader(io.StringIO("\n".join(lines[start:]))):
+        if not (r.get("First Name", "").strip() or r.get("Last Name", "").strip() or r.get("URL", "").strip()):
+            continue  # deleted or hidden accounts come through as blank rows
         out.append({"first_name": r.get("First Name", "").strip(), "last_name": r.get("Last Name", "").strip(),
                     "url": r.get("URL", "").strip(), "email": r.get("Email Address", "").strip(),
                     "company": r.get("Company", "").strip(), "position": r.get("Position", "").strip(),
@@ -74,8 +87,8 @@ def read_export(path: Path) -> list[dict]:
 
 
 def parse_date(s: str) -> str:
-    s = s.strip()
-    for fmt in ("%d %b %Y", "%Y-%m-%d", "%b %d, %Y", "%m/%d/%Y"):
+    s = re.sub(r"^connected( on)?\s+", "", s.strip(), flags=re.I)
+    for fmt in ("%d %b %Y", "%d %B %Y", "%Y-%m-%d", "%b %d, %Y", "%B %d, %Y", "%m/%d/%Y"):
         try:
             return dt.datetime.strptime(s, fmt).date().isoformat()
         except ValueError:
@@ -86,6 +99,7 @@ def parse_date(s: str) -> str:
 def merge(new: list[dict], source: str) -> tuple[int, int]:
     rows, added, updated = load(), 0, 0
     for r in new:
+        r["url"] = (r.get("url") or "").split("?")[0].strip().rstrip("/")
         k = key_of(r)
         if k in rows:
             old = rows[k]
@@ -119,15 +133,17 @@ def shortlist(top: int) -> Path:
         if any(a in text.lower() for a in avoid):
             continue
         overlap = len(tokens(text) & want)
-        senior = 1 if SENIOR.search(r.get("position", "")) else 0
+        pos = r.get("position", "")
+        senior = 2 if DECIDER.search(pos) else 1 if SENIOR.search(pos) else 0
         try:
             age = (now - dt.date.fromisoformat(r.get("connected_on", ""))).days
         except ValueError:
             age = 9999
         recency = 1.0 if age < 90 else 0.5 if age < 365 else 0.0
-        score = 2.0 * overlap + 1.5 * senior + recency
+        score = 2.0 * overlap + 1.0 * senior + recency
         scored.append((score, overlap, senior, age, r))
-    scored.sort(key=lambda x: x[0], reverse=True)
+    # ties: more keyword hits, then more senior, then more recently connected
+    scored.sort(key=lambda x: (-x[0], -x[1], -x[2], x[3]))
     out = DATA / "shortlist.csv"
     with out.open("w", newline="") as f:
         w = csv.writer(f)
@@ -139,12 +155,17 @@ def shortlist(top: int) -> Path:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--demo", action="store_true", help="use data/demo so sample data never mixes with yours")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("import").add_argument("path", type=Path)
     sub.add_parser("refresh").add_argument("path", type=Path)
-    sub.add_parser("shortlist").add_argument("--top", type=int, default=60)
+    sub.add_parser("shortlist").add_argument("--top", type=int, default=100)
     sub.add_parser("stats")
     a = ap.parse_args()
+    if a.demo:
+        use_store(DATA / "demo")
+    if a.cmd == "import" and not a.demo and "examples" in a.path.resolve().parts:
+        sys.exit("That is sample data. Run it with --demo so it stays out of your real list.")
     if a.cmd == "import":
         added, updated = merge(read_export(a.path), "linkedin-export")
         print(f"imported: {added} new, {updated} field updates, {len(load())} total")
