@@ -103,9 +103,14 @@ def merge(new: list[dict], source: str) -> tuple[int, int]:
         k = key_of(r)
         if k in rows:
             old = rows[k]
+            # The export is the better source: real title, company and date. The connections page only
+            # shows a free-text headline and a local-time date, so a browser refresh only fills blanks.
             for f in ("company", "position", "email", "url", "connected_on"):
-                if r.get(f) and r[f] != old.get(f):
-                    old[f] = r[f]; updated += 1
+                if not r.get(f) or r[f] == old.get(f):
+                    continue
+                if source == "browser-refresh" and old.get(f) and old.get("source") != "browser-refresh":
+                    continue
+                old[f] = r[f]; updated += 1
             old["last_seen"] = today()
         else:
             rows[k] = {**r, "key": k, "first_seen": today(), "last_seen": today(), "source": source}
