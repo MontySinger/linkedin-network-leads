@@ -123,7 +123,11 @@ def shortlist(top: int) -> Path:
     if not about_p.exists():
         sys.exit("Missing data/about.json. Run the skill: it asks two questions and writes this file.")
     about = json.loads(about_p.read_text())
-    want = tokens(" ".join(about.get("keywords", [])) + " " + about.get("offer", "") + " " + about.get("goal", ""))
+    # Keywords are matched as whole phrases ("real estate", not "real" + "estate"). Title words such as
+    # "owner" or "ceo" are already scored by seniority, so they are not counted twice.
+    phrases = [k.lower().strip() for k in about.get("keywords", []) if k.strip()]
+    phrases = [k for k in phrases if not (DECIDER.fullmatch(k) or SENIOR.fullmatch(k))]
+    want = [re.compile(r"\b" + re.escape(k) + r"s?\b", re.I) for k in phrases]
     rows = list(load().values())
     now = dt.date.today()
     scored = []
@@ -132,7 +136,7 @@ def shortlist(top: int) -> Path:
         text = f"{r.get('position','')} {r.get('company','')}"
         if any(a in text.lower() for a in avoid):
             continue
-        overlap = len(tokens(text) & want)
+        overlap = sum(1 for w in want if w.search(text))
         pos = r.get("position", "")
         senior = 2 if DECIDER.search(pos) else 1 if SENIOR.search(pos) else 0
         try:
@@ -159,7 +163,7 @@ def main() -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("import").add_argument("path", type=Path)
     sub.add_parser("refresh").add_argument("path", type=Path)
-    sub.add_parser("shortlist").add_argument("--top", type=int, default=100)
+    sub.add_parser("shortlist").add_argument("--top", type=int, default=150)
     sub.add_parser("stats")
     a = ap.parse_args()
     if a.demo:

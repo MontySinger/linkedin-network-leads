@@ -23,13 +23,13 @@ Ask the user exactly two questions, then write `data/about.json`:
 ```json
 {"offer": "...", "goal": "...", "keywords": ["owner", "operations", "clinic", "..."], "avoid": ["recruiters", "..."]}
 ```
-Derive 10–25 keywords from the answers: titles, industries, company types the user would want. Include synonyms.
+Derive 10–25 keywords from the answers: industries, company types and functions the user wants ("dental", "law firm", "property management", "operations"). Seniority is scored separately, so do not spend keywords on "owner" or "ceo". Use exact phrases and include synonyms; avoid words that appear everywhere ("business", "services", "practice").
 
 ## 3. Find who matters
 ```
-python3 scripts/network.py shortlist --top 100
+python3 scripts/network.py shortlist --top 150
 ```
-`data/shortlist.csv` is a keyword/seniority/recency pre-filter, not the answer. Read it, then judge each person against the user's answers:
+`data/shortlist.csv` is a keyword/seniority/recency pre-filter, not the answer. The export has only title and company, no industry, so many good fits (an "Owner" of a company whose name says nothing) score low. If the network is under ~3,000 people, also skim the owners and founders the shortlist missed before deciding. Read it, then judge each person against the user's answers:
 - **Why them, now:** fit with the offer or goal, seniority, recent connection, company type. Only what the data supports; do not invent facts about people.
 - **Best next step:** a specific, low-pressure action (congratulate a new role, ask a question, offer something useful, ask for an intro).
 - **Opening line:** one or two sentences in the user's voice. The user sends it themselves.
