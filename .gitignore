@@ -1,0 +1,5 @@
+data/*
+!data/.gitkeep
+*.zip
+Connections.csv
+.DS_Store
