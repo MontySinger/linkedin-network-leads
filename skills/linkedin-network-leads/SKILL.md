@@ -64,25 +64,34 @@ LinkedIn may restrict the export. To pick up new connections without it, read th
 Rules: read only the user's own connections list, at human pace, when the user asks. Do not visit profiles in bulk, send messages, accept invites, or run on a schedule without the user's say-so. Automated access can conflict with LinkedIn's User Agreement and put the account at risk; tell the user that before the first refresh.
 
 ## 4b. Weekly automatic refresh (optional, macOS)
+When the user asks for it, set it up yourself, start to finish, and prove it works. The only step the user does is sign in to LinkedIn.
 For people who add tens or hundreds of connections a week. Needs Node and Google Chrome.
-1. `npm install`, then `npm run login`: a dedicated Chrome profile opens; the user signs in themselves. Never type their password.
-2. `npm run refresh -- --dry-run` once, then read `data/refresh-qa-*.md` with the user.
-3. `sh launchd/install.sh` installs a Monday 9:00 job (runs at next wake if the Mac was asleep). `sh launchd/install.sh --remove` uninstalls.
+1. Tell the user the account-risk note from step 4 and get a yes.
+2. `npm install`, then `npm run test` (must print `9/9 passed`).
+3. `npm run login` (run it in the background; it waits up to 10 minutes): a dedicated Chrome profile opens and the user signs in themselves. Never type their password. Wait until it prints "Signed in."
+4. `npm run refresh -- --dry-run`, then read `data/refresh-qa-*.md` with the user. It must say PASS.
+5. `npm run refresh` once for real, to record the baseline LinkedIn total the weekly QA compares against.
+6. `sh launchd/install.sh`. It refuses with a clear reason if Node 18+, Chrome, `npm install` or the sign-in is missing; fix that and rerun.
+7. Prove the schedule works: `launchctl kickstart gui/$(id -u)/com.linkedin-network-leads.weekly-refresh`, wait about a minute, then `sh launchd/install.sh --status` must show `last exit code = 0` and a new PASS row. Only then tell the user it is set up.
+
+`sh launchd/install.sh --remove` uninstalls. Not on a Mac: tell the user to run `node scripts/refresh_browser.mjs` weekly with cron (Linux) or Task Scheduler (Windows); the QA works the same.
 
 Each run scrolls the connections page until it is past the last successful run (minus 3 days overlap, at least 8 days back) **and** has seen 10 already-known people in a row, so a week with hundreds of new connections is read in full. QA (in `data/refresh-qa-YYYY-MM-DD.md`, summary in `data/refresh-log.csv`) fails if: the scan stopped before that overlap, rows repeat, a row lacks name/link/date, dates go out of order (a skipped batch), or LinkedIn's connection total grew by more than the new people found. A failed run does not move the anchor, so the next run re-covers the gap. A login or checkpoint page stops the run with a macOS notification; nothing tries to get past it.
 
 The weekly job is plain Node, so it runs the same whichever agent set it up. When the user asks "who's new" after a run, read the latest QA report's "New since last run" list, judge those people as in step 3, and say which of them are worth a meeting (step 3b).
 
 ## 4c. Google Sheet (optional)
+When the user asks for it, create the sheet yourself and verify it; do not hand them steps you can do.
 Best with a Google Sheets/Drive connector in the agent. Never ask for or store Google passwords, API keys or service-account files; the connector does the writing. **No connector?** Run `python3 scripts/sheet_sync.py export` and tell the user to open Google Sheets → File → Import → Upload `data/sheet-export.csv`; repeat after each refresh.
 1. `python3 scripts/sheet_sync.py export` writes `data/sheet-export.csv` (newest first: Name, Title, Company, Connected on, Profile URL, Email, First seen, Source).
 2. Create a Google Sheet from that CSV with the Drive connector (upload as `text/csv` so it converts). Rename the tab "Connections", freeze and bold row 1, add a filter, and add a second tab "Refresh log".
 3. Verify the row count matches, then `python3 scripts/sheet_sync.py init <spreadsheet_id>`.
 4. Each sync: `python3 scripts/sheet_sync.py pending` gives exactly the rows not yet in the sheet. Append them to "Connections", sort by Connected on (newest first, keep the header), append `new_log_rows` to "Refresh log", read back the Profile URL column to confirm each new row is there once, and only then `python3 scripts/sheet_sync.py mark`. If anything fails, do not mark; the next sync retries the same rows.
-5. If the agent can schedule its own runs, offer a Monday job shortly after the 9:00 refresh that runs step 4 and reports PASS/FAIL, new names, and the sheet link. If it cannot, the user says "sync my sheet" after the refresh notification.
+5. Weekly sync. If the agent can schedule its own runs (a scheduled task, routine or automation), create one for Mondays about 30 minutes after the 9:00 refresh. Its prompt must be self-contained: the repo path, step 4 above word for word, the spreadsheet link, and "report PASS/FAIL, new names, and the sheet link." Tell the user it only runs while the agent's app is open. If the agent cannot schedule, say so plainly: the user says "sync my sheet" after the Monday notification.
+6. Show the user the sheet link and the row count you verified.
 
-## 5. Report
-Tell the user: how many connections, how many new since last time (on a first import, say it is the baseline), the 3–5 people to meet this week with one line each, and where the full lists are (`data/top-people.md`, `data/meet-this-week.md`).
+## 5. Report and offer the next step
+Tell the user: how many connections, how many new since last time (on a first import, say it is the baseline), the 3–5 people to meet this week with one line each, and where the full lists are (`data/top-people.md`, `data/meet-this-week.md`). If the weekly refresh (4b) or the Google Sheet (4c) is not set up yet, offer each in one line; set it up only on a yes.
 
 ## Trying it without real data
 Sample data must never go into the user's real list. Use the separate demo store:

@@ -3,7 +3,7 @@
 
     network.py import PATH            # LinkedIn export .zip or Connections.csv
     network.py refresh PATH.json      # connections read from your own browser (see SKILL.md)
-    network.py shortlist [--top 60]   # rank against data/about.json, write data/shortlist.csv
+    network.py shortlist [--top 150]   # rank against data/about.json, write data/shortlist.csv
     network.py insights               # facts about your network for the "who to meet" step -> data/insights.md
     network.py stats
     network.py --demo ...             # same commands on a separate demo store (data/demo)

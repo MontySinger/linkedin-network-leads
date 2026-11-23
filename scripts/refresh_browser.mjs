@@ -104,11 +104,23 @@ const EXTRACT = () => {
 async function main() {
   fs.mkdirSync(PROFILE, { recursive: true });
   fs.mkdirSync(DATA, { recursive: true });
-  const ctx = await chromium.launchPersistentContext(PROFILE, {
-    channel: "chrome",
-    headless: HEADLESS && !LOGIN,
-    viewport: { width: 1280, height: 900 },
-  });
+  let ctx;
+  try {
+    ctx = await chromium.launchPersistentContext(PROFILE, {
+      channel: "chrome",
+      headless: HEADLESS && !LOGIN,
+      viewport: { width: 1280, height: 900 },
+    });
+  } catch (e) {
+    const msg = /ProcessSingleton|already in use|SingletonLock/i.test(String(e))
+      ? "The LinkedIn refresh Chrome window is already open. Close it and run again."
+      : /executable|channel|chrome/i.test(String(e))
+      ? "Google Chrome was not found. Install Chrome, then run again."
+      : `Chrome failed to start: ${String(e.message || e).split("\n")[0]}`;
+    notify("LinkedIn refresh stopped", msg);
+    console.error(msg);
+    return 2;
+  }
   const page = ctx.pages()[0] || (await ctx.newPage());
   await page.goto(URL, { waitUntil: "domcontentloaded" });
 

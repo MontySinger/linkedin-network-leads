@@ -11,7 +11,7 @@ It all runs on your computer. Nothing gets posted or sent for you. You stay in c
 - A computer. The LinkedIn download doesn't work from the phone app.
 - An AI coding agent: Claude Code, Codex, Cursor, Gemini CLI, a Grok-based agent, or any other that can read files and run commands. Any model works; nothing here is tied to one company.
 - Python 3.9 or newer. Macs usually have it already; type `python3 --version` in Terminal to check.
-- Optional, for the weekly auto-update: a Mac, Google Chrome and [Node.js](https://nodejs.org).
+- Optional, for the weekly auto-update: a Mac, Google Chrome and [Node.js](https://nodejs.org) 18 or newer.
 
 ## Step 1: Download your connections (2 minutes, then wait a day)
 
@@ -72,7 +72,9 @@ Every Monday at 9:00 (or when your Mac next wakes up), it opens your connections
 
 The weekly job doesn't use any AI at all, so it works the same whichever agent set it up. Ask "who's new this week?" afterwards and your agent judges the new names the same way as Step 3, including who's worth a meeting.
 
-To turn it off: `sh launchd/install.sh --remove`.
+Check it any time with `sh launchd/install.sh --status`. To turn it off: `sh launchd/install.sh --remove`.
+
+Or skip the commands and tell your agent: "Set up the weekly LinkedIn refresh." It runs all of the above, stops only for you to sign in, then runs a test and shows you the result.
 
 ## Step 5 (optional): Send it to a Google Sheet
 

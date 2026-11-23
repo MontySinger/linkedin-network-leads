@@ -11,6 +11,7 @@ Everything runs on your computer. Your connections never leave the `data/` folde
 ## What you need
 - An AI coding agent that can read files and run commands (Claude Code, Codex, Cursor, Gemini CLI, a Grok-based agent, …). Any model works.
 - Python 3.9+ (no packages to install)
+- For the weekly refresh only: macOS, Google Chrome, Node.js 18+
 - Your LinkedIn data export (free, takes about a day)
 
 ## Setup
@@ -50,7 +51,8 @@ scripts/refresh_browser.mjs                     optional weekly browser refresh 
 launchd/install.sh                              schedules it on macOS (Mondays 9:00)
 scripts/sheet_sync.py                           decides what to append to a Google Sheet, so nothing is sent twice
 GUIDE.md                                        step-by-step setup guide for anyone
-scripts/network.py                              import, refresh, shortlist, stats
+scripts/network.py                              import, refresh, shortlist, insights, stats
+scripts/test_refresh.mjs                        tests for the refresh stop rule (npm test)
 examples/Connections.sample.csv                 fake data to try it without an export
 ```
 
