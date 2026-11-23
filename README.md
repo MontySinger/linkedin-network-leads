@@ -29,6 +29,8 @@ Everything runs on your computer. Your connections never leave the `data/` folde
 ## Keeping it current
 Say "refresh my LinkedIn connections". Claude opens your connections page in your own signed-in browser, reads the newest connections until it reaches people it already knows, and merges them in. You sign in yourself; it never touches your password.
 
+**Weekly, automatically (macOS).** If you add a lot of connections, `npm install && npm run login` (sign in once in the window that opens), then `sh launchd/install.sh`. Every Monday it reads every connection since the last run, checks its own work (stops early? skipped a batch? LinkedIn's total grew more than it found?), merges them, and writes a QA report to `data/`. You get a Mac notification either way.
+
 Read this before you use it: automated access to LinkedIn can conflict with LinkedIn's User Agreement. The skill only reads your own connections list, slowly, when you ask, and never messages anyone or visits profiles in bulk. That lowers the risk; it does not remove it. Your call.
 
 ## How it decides
@@ -38,6 +40,8 @@ A simple script ranks everyone by fit with your answers, seniority and how recen
 ```
 .claude/skills/linkedin-network-leads/SKILL.md   the workflow Claude follows
 AGENTS.md                                       points Codex and other agents to that workflow
+scripts/refresh_browser.mjs                     optional weekly browser refresh with QA
+launchd/install.sh                              schedules it on macOS (Mondays 9:00)
 scripts/network.py                              import, refresh, shortlist, stats
 examples/Connections.sample.csv                 fake data to try it without an export
 ```

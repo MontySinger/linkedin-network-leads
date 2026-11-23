@@ -45,6 +45,16 @@ LinkedIn may restrict the export. To pick up new connections without it, read th
 
 Rules: read only the user's own connections list, at human pace, when the user asks. Do not visit profiles in bulk, send messages, accept invites, or run on a schedule without the user's say-so. Automated access can conflict with LinkedIn's User Agreement and put the account at risk; tell the user that before the first refresh.
 
+## 4b. Weekly automatic refresh (optional, macOS)
+For people who add tens or hundreds of connections a week. Needs Node and Google Chrome.
+1. `npm install`, then `npm run login`: a dedicated Chrome profile opens; the user signs in themselves. Never type their password.
+2. `npm run refresh -- --dry-run` once, then read `data/refresh-qa-*.md` with the user.
+3. `sh launchd/install.sh` installs a Monday 9:00 job (runs at next wake if the Mac was asleep). `sh launchd/install.sh --remove` uninstalls.
+
+Each run scrolls the connections page until it is past the last successful run (minus 3 days overlap, at least 8 days back) **and** has seen 10 already-known people in a row, so a week with hundreds of new connections is read in full. QA (in `data/refresh-qa-YYYY-MM-DD.md`, summary in `data/refresh-log.csv`) fails if: the scan stopped before that overlap, rows repeat, a row lacks name/link/date, dates go out of order (a skipped batch), or LinkedIn's connection total grew by more than the new people found. A failed run does not move the anchor, so the next run re-covers the gap. A login or checkpoint page stops the run with a macOS notification; nothing tries to get past it.
+
+When the user asks "who's new" after a run, read the latest QA report's "New since last run" list and judge those people as in step 3.
+
 ## 5. Report
 Tell the user: how many connections, how many new since last time, the top 5 with one line each, and where the full list is.
 

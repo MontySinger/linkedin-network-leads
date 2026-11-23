@@ -3,3 +3,4 @@ data/*
 *.zip
 Connections.csv
 .DS_Store
+node_modules/

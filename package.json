@@ -1,0 +1,13 @@
+{
+  "name": "linkedin-network-leads",
+  "private": true,
+  "type": "module",
+  "description": "Optional weekly browser refresh for linkedin-network-leads",
+  "scripts": {
+    "login": "node scripts/refresh_browser.mjs --login",
+    "refresh": "node scripts/refresh_browser.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.49.1"
+  }
+}
