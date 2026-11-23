@@ -2,14 +2,14 @@
 
 A step-by-step guide. About 15 minutes of your time, plus a day of waiting on LinkedIn.
 
-The person most likely to become your next client already knows you, already trusts you, and has probably drifted out of your head. This tool reads your LinkedIn connections, asks you two questions about your business, and hands you a short list of who to talk to this week: why each person, what to do next, and a first line you can send.
+The person most likely to become your next client already knows you, already trusts you, and has probably drifted out of your head. This tool reads your LinkedIn connections, asks you two questions about your business, and hands you a short list of who to talk to this week, and the handful worth actually meeting: why each person, what to do next, and a first line you can send.
 
 It all runs on your computer. Nothing gets posted or sent for you. You stay in charge of every message.
 
 ## What you need
 
 - A computer. The LinkedIn download doesn't work from the phone app.
-- [Claude Code](https://claude.com/claude-code) or Codex.
+- An AI coding agent: Claude Code, Codex, Cursor, Gemini CLI, a Grok-based agent, or any other that can read files and run commands. Any model works; nothing here is tied to one company.
 - Python 3.9 or newer. Macs usually have it already; type `python3 --version` in Terminal to check.
 - Optional, for the weekly auto-update: a Mac, Google Chrome and [Node.js](https://nodejs.org).
 
@@ -30,7 +30,7 @@ cd linkedin-network-leads
 claude
 ```
 
-Using Codex? Type `codex` instead of `claude`. It reads the same instructions.
+Using something else? Start your own agent instead of `claude` (`codex`, `cursor`, `gemini`, …). They all read the same instructions. If yours seems lost, say "Read AGENTS.md" first.
 
 ## Step 3: Ask for your list (10 minutes)
 
@@ -45,7 +45,9 @@ It imports your connections, then asks you two questions:
 
 A few minutes later you get `data/top-people.md`: 15 to 25 people grouped into clients, intros and everyone else. Each one comes with why them, why now, a next step, and an opening line.
 
-Read it the way you'd read a list from a sharp assistant. The export only shows each person's title, company and the date you connected, and titles go stale. Check the profile before you send anything, then send it yourself.
+You also get `data/meet-this-week.md`: the 3 to 5 people worth a call or coffee rather than a message, what you want out of each meeting, a question to open with, and a few patterns in your network worth acting on ("you know 12 people at one firm"). Ask "who should I meet with?" any time to redo it.
+
+Read both the way you'd read a list from a sharp assistant. The export only shows each person's title, company and the date you connected, and titles go stale. Check the profile before you send anything, then send it yourself.
 
 ## Step 4 (optional): Keep it current every week
 
@@ -68,17 +70,17 @@ Every Monday at 9:00 (or when your Mac next wakes up), it opens your connections
 - It compares LinkedIn's connection count with what it found. If LinkedIn says you grew by 40 and it only found 35, the run is marked FAIL and next week's run covers the gap.
 - It writes a short report to `data/refresh-qa-<date>.md` and sends you a Mac notification either way.
 
-Ask "who's new this week?" afterwards and you'll get the same judgment as Step 3, just for the new names.
+The weekly job doesn't use any AI at all, so it works the same whichever agent set it up. Ask "who's new this week?" afterwards and your agent judges the new names the same way as Step 3, including who's worth a meeting.
 
 To turn it off: `sh launchd/install.sh --remove`.
 
 ## Step 5 (optional): Send it to a Google Sheet
 
-If your Claude or Codex has a Google Sheets connection, say:
+If your agent has a Google Sheets connection, say:
 
 > Put my LinkedIn connections in a Google Sheet and keep it updated after each weekly refresh.
 
-It uploads your whole network once, then adds only the new rows each week, plus a log of every refresh and whether it passed. It never stores Google passwords or keys on your computer; the connection you already approved does the writing.
+It uploads your whole network once, then adds only the new rows each week, plus a log of every refresh and whether it passed. It never stores Google passwords or keys on your computer; the connection you already approved does the writing. No Google connection? Ask for the sheet file instead and import it with File → Import in Google Sheets.
 
 ## Before you turn on the weekly refresh
 

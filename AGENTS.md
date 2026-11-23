@@ -1,9 +1,10 @@
 # Agent instructions
 
-This repo is a single skill: find the people in the user's LinkedIn network worth talking to now.
+This repo is one skill: find the people in the user's LinkedIn network worth talking to and meeting now.
 
-When the user asks to find leads in their LinkedIn network, import their LinkedIn connections, or refresh or update their network list, read and follow `.claude/skills/linkedin-network-leads/SKILL.md` exactly. It is written for any agent that can run Python, not only Claude.
+The full workflow is in `skills/linkedin-network-leads/SKILL.md`. When the user asks anything about their LinkedIn network, connections, leads, who to meet, the weekly refresh, or the Google Sheet, read that file and follow it exactly. It works with any agent and any model that can read files and run commands.
 
-- Run scripts from the repo root: `python3 scripts/network.py ...`
+- Run scripts from the repo root: `python3 scripts/network.py ...`, `node scripts/refresh_browser.mjs`.
 - Keep everything in `data/`. Never post, message, or send anything for the user.
-- For the browser refresh, use whatever browser or computer-use tool you have, in the user's own signed-in session. Never handle their password.
+- Use whatever browser, computer-use, Google Sheets or scheduling tools you have. If you have none, the skill says what to do instead.
+- Never type, ask for, or store the user's LinkedIn or Google password, API keys, or tokens.

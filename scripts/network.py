@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Local store of your LinkedIn connections + a shortlist for Claude to judge.
+"""Local store of your LinkedIn connections + a shortlist and network insights for your agent to judge.
 
     network.py import PATH            # LinkedIn export .zip or Connections.csv
     network.py refresh PATH.json      # connections read from your own browser (see SKILL.md)
     network.py shortlist [--top 60]   # rank against data/about.json, write data/shortlist.csv
+    network.py insights               # facts about your network for the "who to meet" step -> data/insights.md
     network.py stats
     network.py --demo ...             # same commands on a separate demo store (data/demo)
 
@@ -123,6 +124,12 @@ def tokens(s: str) -> set[str]:
     return {t for t in re.findall(r"[a-z][a-z0-9+&-]{2,}", s.lower())} - {"and", "the", "for", "with", "who", "that"}
 
 
+def avoided(r: dict, avoid: list[str]) -> bool:
+    """Whole-word match, so "intern" skips interns but not "International"."""
+    text = f"{r.get('position','')} {r.get('company','')}"
+    return any(re.search(r"\b" + re.escape(a) + r"s?\b", text, re.I) for a in avoid if a)
+
+
 def shortlist(top: int) -> Path:
     about_p = DATA / "about.json"
     if not about_p.exists():
@@ -139,7 +146,7 @@ def shortlist(top: int) -> Path:
     avoid = [a.lower() for a in about.get("avoid", [])]
     for r in rows:
         text = f"{r.get('position','')} {r.get('company','')}"
-        if any(a in text.lower() for a in avoid):
+        if avoided(r, avoid):
             continue
         overlap = sum(1 for w in want if w.search(text))
         pos = r.get("position", "")
@@ -162,6 +169,66 @@ def shortlist(top: int) -> Path:
     return out
 
 
+def insights() -> Path:
+    """Facts only. The agent turns these into meeting recommendations."""
+    about_p = DATA / "about.json"
+    about = json.loads(about_p.read_text()) if about_p.exists() else {}
+    phrases = [k.lower().strip() for k in about.get("keywords", []) if k.strip()]
+    phrases = [k for k in phrases if not (DECIDER.fullmatch(k) or SENIOR.fullmatch(k))]
+    avoid = [a.lower() for a in about.get("avoid", [])]
+    rows = [r for r in load().values() if not avoided(r, avoid)]
+    now = dt.date.today()
+
+    def age(r):
+        try:
+            return (now - dt.date.fromisoformat(r.get("connected_on", ""))).days
+        except ValueError:
+            return 99999
+
+    def fits(r):
+        text = f"{r.get('position','')} {r.get('company','')}"
+        return [k for k in phrases if re.search(r"\b" + re.escape(k) + r"s?\b", text, re.I)]
+
+    def line(r):
+        f = fits(r)
+        return (f"- {r['first_name']} {r['last_name']} · {r.get('position','')} · {r.get('company','')} · "
+                f"connected {r.get('connected_on','?')}" + (f" · fits: {', '.join(f)}" if f else "") + f" · {r.get('url','')}")
+
+    decider = [r for r in rows if DECIDER.search(r.get("position", ""))]
+    senior = [r for r in rows if SENIOR.search(r.get("position", "")) and r not in decider]
+    by_co: dict[str, list] = {}
+    for r in rows:
+        c = (r.get("company") or "").strip()
+        if c and c.lower() not in ("self-employed", "self employed", "independent", "freelance"):
+            by_co.setdefault(c, []).append(r)
+    clusters = sorted(((c, rs) for c, rs in by_co.items() if len(rs) >= 2), key=lambda x: -len(x[1]))[:15]
+    fit_counts = {k: sum(1 for r in rows if re.search(r"\b" + re.escape(k) + r"s?\b",
+                         f"{r.get('position','')} {r.get('company','')}", re.I)) for k in phrases}
+    recent_dec = sorted((r for r in decider if age(r) <= 90), key=age)
+    dormant = sorted((r for r in decider if age(r) > 365), key=lambda r: (-len(fits(r)), age(r)))
+    blanks = sum(1 for r in rows if not r.get("position"))
+
+    out = [f"# Network insights · {now.isoformat()}", "",
+           f"{len(rows)} connections (after the avoid list). New in the last 7 / 30 / 90 days: "
+           f"{sum(age(r) <= 7 for r in rows)} / {sum(age(r) <= 30 for r in rows)} / {sum(age(r) <= 90 for r in rows)}.",
+           f"Decision-makers (founder, owner, CEO, president, principal): {len(decider)}. Other senior titles: {len(senior)}. "
+           f"No title at all: {blanks}.", "",
+           "## Where your offer fits (keyword matches in title or company)", ""]
+    out += [f"- {k}: {n}" for k, n in sorted(fit_counts.items(), key=lambda x: -x[1]) if n] or ["- No keyword matches. Check data/about.json."]
+    out += ["", "## Decision-makers you connected with in the last 90 days (warmest)", ""]
+    out += [line(r) for r in recent_dec[:40]] or ["None."]
+    out += ["", "## Dormant decision-makers (connected over a year ago), best fit first", ""]
+    out += [line(r) for r in dormant[:40]] or ["None."]
+    out += ["", "## Companies where you know several people (one meeting can open several doors)", ""]
+    for c, rs in clusters:
+        out.append(f"- **{c}** ({len(rs)}): " + "; ".join(f"{r['first_name']} {r['last_name']} ({r.get('position','')})" for r in rs[:6]))
+    if not clusters:
+        out.append("None.")
+    path = DATA / "insights.md"
+    path.write_text("\n".join(out) + "\n")
+    return path
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--demo", action="store_true", help="use data/demo so sample data never mixes with yours")
@@ -169,6 +236,7 @@ def main() -> int:
     sub.add_parser("import").add_argument("path", type=Path)
     sub.add_parser("refresh").add_argument("path", type=Path)
     sub.add_parser("shortlist").add_argument("--top", type=int, default=150)
+    sub.add_parser("insights")
     sub.add_parser("stats")
     a = ap.parse_args()
     if a.demo:
@@ -182,6 +250,8 @@ def main() -> int:
         new = [{**r, "connected_on": parse_date(r.get("connected_on", ""))} for r in json.loads(a.path.read_text())]
         added, updated = merge(new, "browser-refresh")
         print(f"refreshed: {added} new, {updated} field updates, {len(load())} total")
+    elif a.cmd == "insights":
+        print(f"wrote {insights()}")
     elif a.cmd == "shortlist":
         print(f"wrote {shortlist(a.top)}")
     else:
