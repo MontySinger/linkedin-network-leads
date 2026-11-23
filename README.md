@@ -15,7 +15,7 @@ Everything runs on your computer. Your connections never leave the `data/` folde
 1. **Request your data.** On desktop: Me → Settings & Privacy → Data privacy → Get a copy of your data → **Connections** → Request archive. LinkedIn emails you a link, usually within a day. It does not work from the phone app.
 2. **Get the skill.**
    ```
-   git clone https://github.com/<your-account>/linkedin-network-leads
+   git clone https://github.com/MontySinger/linkedin-network-leads
    cd linkedin-network-leads
    claude
    ```
